@@ -40,6 +40,8 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
   List<dynamic>? _reviews;
   String? _trailerKey;
   String? _errorMessage;
+  List<dynamic>? _searchResults;
+  bool _showingSearchResults = false;
 
   // Replace with your API keys
   final String omdbApiKey = 'fe138e9';
@@ -56,32 +58,67 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
       _cast = null;
       _reviews = null;
       _trailerKey = null;
+      _searchResults = null;
+      _showingSearchResults = false;
     });
 
     try {
-      // Try TMDB first (has newer movies and better search)
-      bool tmdbSuccess = await _fetchTMDBData(movieName);
-      
-      // Then try OMDB for additional ratings
-      if (tmdbSuccess) {
-        await _fetchOMDBDataByImdbId();
-      } else {
-        // Fallback to OMDB direct search
-        await _fetchOMDBData(movieName);
-        if (_movieData != null) {
-          await _fetchTMDBData(movieName);
+      // Search TMDB for all matching movies
+      final searchResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/search/movie?api_key=$tmdbApiKey&query=${Uri.encodeComponent(movieName)}'),
+      ).timeout(const Duration(seconds: 10));
+
+      if (searchResponse.statusCode == 200) {
+        final searchData = json.decode(searchResponse.body);
+        if (searchData['results'] != null && searchData['results'].isNotEmpty) {
+          final results = searchData['results'] as List;
+          
+          // If multiple movies found, show selection screen
+          if (results.length > 1) {
+            setState(() {
+              _searchResults = results.take(10).toList(); // Show top 10 results
+              _showingSearchResults = true;
+            });
+          } else {
+            // Only one result, load it directly
+            await _loadMovieById(results[0]['id'] as int);
+          }
+        } else {
+          // Try OMDB as fallback
+          await _fetchOMDBData(movieName);
+          if (_movieData != null) {
+            await _fetchTMDBDataByTitle(movieName);
+          } else {
+            setState(() {
+              _errorMessage = 'Movie not found. Try a different search term.';
+            });
+          }
         }
-      }
-      
-      // If still no data found
-      if (_movieData == null && _tmdbData == null) {
-        setState(() {
-          _errorMessage = 'Movie not found. Try a different search term.';
-        });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'Error: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMovieById(int movieId) async {
+    setState(() {
+      _isLoading = true;
+      _showingSearchResults = false;
+    });
+
+    try {
+      await _fetchTMDBDataById(movieId);
+      await _fetchOMDBDataByImdbId();
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error loading movie: ${e.toString()}';
       });
     } finally {
       setState(() {
@@ -120,9 +157,8 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     }
   }
 
-  Future<bool> _fetchTMDBData(String movieName) async {
+  Future<bool> _fetchTMDBDataByTitle(String movieName) async {
     try {
-      // Search for movie on TMDB
       final searchResponse = await http.get(
         Uri.parse(
             'https://api.themoviedb.org/3/search/movie?api_key=$tmdbApiKey&query=${Uri.encodeComponent(movieName)}'),
@@ -131,95 +167,105 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
       if (searchResponse.statusCode == 200) {
         final searchData = json.decode(searchResponse.body);
         if (searchData['results'] != null && searchData['results'].isNotEmpty) {
-          final movieId = searchData['results'][0]['id'];
-          
-          // Fetch movie details
-          final detailsResponse = await http.get(
-            Uri.parse(
-                'https://api.themoviedb.org/3/movie/$movieId?api_key=$tmdbApiKey'),
-          ).timeout(const Duration(seconds: 10));
-          
-          // Fetch cast
-          final creditsResponse = await http.get(
-            Uri.parse(
-                'https://api.themoviedb.org/3/movie/$movieId/credits?api_key=$tmdbApiKey'),
-          ).timeout(const Duration(seconds: 10));
-          
-          // Fetch videos (trailers)
-          final videosResponse = await http.get(
-            Uri.parse(
-                'https://api.themoviedb.org/3/movie/$movieId/videos?api_key=$tmdbApiKey'),
-          ).timeout(const Duration(seconds: 10));
-          
-          // Fetch reviews
-          final reviewsResponse = await http.get(
-            Uri.parse(
-                'https://api.themoviedb.org/3/movie/$movieId/reviews?api_key=$tmdbApiKey'),
-          ).timeout(const Duration(seconds: 10));
-
-          final details = json.decode(detailsResponse.body);
-          
-          setState(() {
-            _tmdbData = details;
-            
-            // Create movieData from TMDB if not already set
-            if (_movieData == null) {
-              _movieData = {
-                'Title': details['title'] ?? 'N/A',
-                'Year': details['release_date']?.substring(0, 4) ?? 'N/A',
-                'Runtime': details['runtime'] != null ? '${details['runtime']} min' : 'N/A',
-                'Genre': (details['genres'] as List?)?.map((g) => g['name']).join(', ') ?? 'N/A',
-                'Director': 'N/A',
-                'Writer': 'N/A',
-                'Plot': details['overview'] ?? 'N/A',
-                'Language': (details['spoken_languages'] as List?)?.isNotEmpty == true 
-                    ? details['spoken_languages'][0]['english_name'] 
-                    : 'N/A',
-                'Poster': details['poster_path'] != null 
-                    ? 'https://image.tmdb.org/t/p/w500${details['poster_path']}'
-                    : 'N/A',
-                'imdbRating': details['vote_average'] != null 
-                    ? (details['vote_average'] as num).toStringAsFixed(1)
-                    : 'N/A',
-                'Metascore': 'N/A',
-                'imdbID': details['imdb_id'] ?? '',
-              };
-            }
-            
-            final creditsData = json.decode(creditsResponse.body);
-            _cast = creditsData['cast']?.take(10).toList();
-            
-            // Get director and writers from crew
-            if (creditsData['crew'] != null) {
-              final crew = creditsData['crew'] as List;
-              final directors = crew.where((c) => c['job'] == 'Director').map((c) => c['name']).toList();
-              final writers = crew.where((c) => c['job'] == 'Writer' || c['job'] == 'Screenplay').map((c) => c['name']).toList();
-              
-              if (directors.isNotEmpty && _movieData!['Director'] == 'N/A') {
-                _movieData!['Director'] = directors.join(', ');
-              }
-              if (writers.isNotEmpty && _movieData!['Writer'] == 'N/A') {
-                _movieData!['Writer'] = writers.take(3).join(', ');
-              }
-            }
-            
-            final videosData = json.decode(videosResponse.body);
-            if (videosData['results'] != null) {
-              final trailer = videosData['results'].firstWhere(
-                (video) => video['type'] == 'Trailer' && video['site'] == 'YouTube',
-                orElse: () => videosData['results'].isNotEmpty ? videosData['results'][0] : null,
-              );
-              _trailerKey = trailer?['key'];
-            }
-            
-            final reviewsData = json.decode(reviewsResponse.body);
-            _reviews = reviewsData['results'];
-          });
-          
-          return true;
+          final movieId = searchData['results'][0]['id'] as int;
+          return await _fetchTMDBDataById(movieId);
         }
       }
       return false;
+    } catch (e) {
+      print('TMDB Search Error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _fetchTMDBDataById(int movieId) async {
+    try {
+      // Fetch movie details
+      final detailsResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/movie/$movieId?api_key=$tmdbApiKey'),
+      ).timeout(const Duration(seconds: 10));
+      
+      // Fetch cast
+      final creditsResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/movie/$movieId/credits?api_key=$tmdbApiKey'),
+      ).timeout(const Duration(seconds: 10));
+      
+      // Fetch videos (trailers)
+      final videosResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/movie/$movieId/videos?api_key=$tmdbApiKey'),
+      ).timeout(const Duration(seconds: 10));
+      
+      // Fetch reviews
+      final reviewsResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/movie/$movieId/reviews?api_key=$tmdbApiKey'),
+      ).timeout(const Duration(seconds: 10));
+
+      final details = json.decode(detailsResponse.body);
+      
+      setState(() {
+        _tmdbData = details;
+        
+        // Create movieData from TMDB if not already set
+        if (_movieData == null) {
+          _movieData = {
+            'Title': details['title'] ?? 'N/A',
+            'Year': (details['release_date'] is String && (details['release_date'] as String).length >= 4)
+                ? (details['release_date'] as String).substring(0, 4)
+                : 'N/A',
+            'Runtime': details['runtime'] != null ? '${details['runtime']} min' : 'N/A',
+            'Genre': (details['genres'] as List?)?.map((g) => g['name']).join(', ') ?? 'N/A',
+            'Director': 'N/A',
+            'Writer': 'N/A',
+            'Plot': details['overview'] ?? 'N/A',
+            'Language': (details['spoken_languages'] as List?)?.isNotEmpty == true 
+                ? details['spoken_languages'][0]['english_name'] 
+                : 'N/A',
+            'Poster': details['poster_path'] != null 
+                ? 'https://image.tmdb.org/t/p/w500${details['poster_path']}'
+                : 'N/A',
+            'imdbRating': details['vote_average'] != null 
+                ? (details['vote_average'] as num).toStringAsFixed(1)
+                : 'N/A',
+            'Metascore': 'N/A',
+            'imdbID': details['imdb_id'] ?? '',
+          };
+        }
+        
+        final creditsData = json.decode(creditsResponse.body);
+        _cast = creditsData['cast']?.take(10).toList();
+        
+        // Get director and writers from crew
+        if (creditsData['crew'] != null) {
+          final crew = creditsData['crew'] as List;
+          final directors = crew.where((c) => c['job'] == 'Director').map((c) => c['name']).toList();
+          final writers = crew.where((c) => c['job'] == 'Writer' || c['job'] == 'Screenplay').map((c) => c['name']).toList();
+          
+          if (directors.isNotEmpty && _movieData!['Director'] == 'N/A') {
+            _movieData!['Director'] = directors.join(', ');
+          }
+          if (writers.isNotEmpty && _movieData!['Writer'] == 'N/A') {
+            _movieData!['Writer'] = writers.take(3).join(', ');
+          }
+        }
+        
+        final videosData = json.decode(videosResponse.body);
+        if (videosData['results'] != null) {
+          final trailer = (videosData['results'] as List<dynamic>).firstWhere(
+            (video) => video['type'] == 'Trailer' && video['site'] == 'YouTube',
+            orElse: () => videosData['results'].isNotEmpty ? videosData['results'][0] : null,
+          );
+          _trailerKey = trailer?['key'] as String?;
+        }
+        
+        final reviewsData = json.decode(reviewsResponse.body);
+        _reviews = reviewsData['results'] as List<dynamic>?;
+      });
+      
+      return true;
     } catch (e) {
       print('TMDB Error: $e');
       return false;
@@ -308,16 +354,189 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                           style: const TextStyle(color: Colors.red, fontSize: 16),
                         ),
                       )
-                    : _movieData != null
-                        ? _buildMovieDetails()
-                        : const Center(
-                            child: Text(
-                              'Search for a movie to see details',
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
-                            ),
-                          ),
+                    : _showingSearchResults
+                        ? _buildSearchResults()
+                        : _movieData != null
+                            ? _buildMovieDetails()
+                            : const Center(
+                                child: Text(
+                                  'Search for a movie to see details',
+                                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                                ),
+                              ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.red.withAlpha(26), 
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.red),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Multiple movies found with similar names. Select the one you want:',
+                  style: TextStyle(
+                    color: Colors.grey[300],
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _searchResults!.length,
+            itemBuilder: (context, index) {
+              final movie = _searchResults![index] as Map<String, dynamic>;
+              return _buildSearchResultCard(movie);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchResultCard(Map<String, dynamic> movie) {
+    final title = movie['title'] ?? 'Unknown';
+    final String? releaseDate = movie['release_date'] as String?;
+    final year = (releaseDate != null && releaseDate.length >= 4) ? releaseDate.substring(0, 4) : 'N/A';
+    final overview = movie['overview'] ?? 'No description available';
+    final posterPath = movie['poster_path'] as String?;
+    final rating = movie['vote_average'] as num?;
+    final voteCount = movie['vote_count'] as int?;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: Colors.grey[850],
+      child: InkWell(
+        onTap: () => _loadMovieById(movie['id'] as int),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Poster
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: posterPath != null
+                    ? Image.network(
+                        'https://image.tmdb.org/t/p/w200$posterPath',
+                        width: 80,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                          return Container(
+                            width: 80,
+                            height: 120,
+                            color: Colors.grey[800],
+                            child: const Icon(Icons.movie, size: 40),
+                          );
+                        },
+                      )
+                    : Container(
+                        width: 80,
+                        height: 120,
+                        color: Colors.grey[800],
+                        child: const Icon(Icons.movie, size: 40),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              // Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            year,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (rating != null) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.star, color: Colors.amber, size: 16),
+                          Text(
+                            ' ${rating.toStringAsFixed(1)}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          if (voteCount != null)
+                            Text(
+                              ' ($voteCount)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      overview,
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.touch_app, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tap to view details',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -336,7 +555,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
-                    _movieData!['Poster'],
+                    _movieData!['Poster'] as String,
                     width: 120,
                     height: 180,
                     fit: BoxFit.cover,
@@ -348,7 +567,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _movieData!['Title'],
+                      _movieData!['Title'] as String,
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -389,14 +608,14 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
           const SizedBox(height: 24),
           
           // Genre
-          _buildSection('Genre', _movieData!['Genre']),
+          _buildSection('Genre', _movieData!['Genre'] as String),
           
           // Elaborate Plot/Summary
           _buildElaboratePlot(),
           
           // Director & Actors
-          _buildSection('Director', _movieData!['Director']),
-          _buildSection('Writers', _movieData!['Writer']),
+          _buildSection('Director', _movieData!['Director'] as String),
+          _buildSection('Writers', _movieData!['Writer'] as String),
           
           // Cast with Images
           if (_cast != null && _cast!.isNotEmpty) ...[
@@ -411,8 +630,8 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: _cast!.length,
-                itemBuilder: (context, index) {
-                  final actor = _cast![index];
+                itemBuilder: (BuildContext context, int index) {
+                  final actor = _cast![index] as Map<String, dynamic>;
                   return _buildCastCard(actor);
                 },
               ),
@@ -427,7 +646,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            ..._reviews!.take(3).map((review) => _buildReviewCard(review)),
+            ..._reviews!.take(3).map<Widget>((dynamic review) => _buildReviewCard(review as Map<String, dynamic>)),
           ],
           
           const SizedBox(height: 24),
@@ -442,17 +661,17 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
       runSpacing: 8,
       children: [
         if (_movieData!['imdbRating'] != 'N/A')
-          _buildRatingChip('IMDb', _movieData!['imdbRating'], Colors.amber),
+          _buildRatingChip('IMDb', _movieData!['imdbRating'] as String, Colors.amber),
         if (_tmdbData != null && _tmdbData!['vote_average'] != null)
           _buildRatingChip(
             'TMDB',
-            _tmdbData!['vote_average'].toStringAsFixed(1),
+            (_tmdbData!['vote_average'] as num).toStringAsFixed(1),
             Colors.blue,
           ),
         if (_movieData!['Metascore'] != 'N/A')
-          _buildRatingChip('Metascore', _movieData!['Metascore'], Colors.green),
+          _buildRatingChip('Metascore', _movieData!['Metascore'] as String, Colors.green),
         // Simulated BookMyShow rating
-        _buildRatingChip('BookMyShow', '${(7.5 + (double.tryParse(_movieData!['imdbRating'] ?? '0') ?? 0) * 0.3).toStringAsFixed(1)}', Colors.red),
+        _buildRatingChip('BookMyShow', '${(7.5 + (double.tryParse(_movieData!['imdbRating'] as String? ?? '0') ?? 0) * 0.3).toStringAsFixed(1)}', Colors.red),
       ],
     );
   }
@@ -472,8 +691,8 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
   }
 
   Widget _buildElaboratePlot() {
-    String plot = _movieData!['Plot'] ?? 'N/A';
-    String overview = _tmdbData?['overview'] ?? '';
+    String plot = _movieData!['Plot'] as String? ?? 'N/A';
+    String overview = _tmdbData?['overview'] as String? ?? '';
     
     // Combine OMDB plot with TMDB overview for more detail
     String fullSummary = plot;
@@ -486,7 +705,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     if (fullSummary == 'N/A') return const SizedBox.shrink();
     
     // Add tagline if available
-    String? tagline = _tmdbData?['tagline'];
+    String? tagline = _tmdbData?['tagline'] as String?;
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -505,9 +724,9 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withAlpha(26), // 0.1 opacity
+                color: Colors.red.withAlpha(26), 
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withAlpha(77)), // 0.3 opacity
+                border: Border.all(color: Colors.red.withAlpha(77)), 
               ),
               child: Row(
                 children: [
@@ -545,29 +764,29 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
               spacing: 16,
               runSpacing: 8,
               children: [
-                if (_tmdbData!['budget'] != null && _tmdbData!['budget'] > 0)
+                if (_tmdbData!['budget'] != null && (_tmdbData!['budget'] as int) > 0)
                   _buildInfoChip(
                     Icons.attach_money,
                     'Budget',
-                    "\$${(_tmdbData!['budget'] / 1000000).toStringAsFixed(1)}M",
-                  ),
-                if (_tmdbData!['revenue'] != null && _tmdbData!['revenue'] > 0)
+                    '\$${((_tmdbData!['budget'] as int) / 1000000).toStringAsFixed(1)}M',
+                  ), 
+                if (_tmdbData!['revenue'] != null && (_tmdbData!['revenue'] as int) > 0)
                   _buildInfoChip(
                     Icons.trending_up,
                     'Revenue',
-                    "\$${(_tmdbData!['revenue'] / 1000000).toStringAsFixed(1)}M",
-                  ),
+                    '\$${((_tmdbData!['revenue'] as int) / 1000000).toStringAsFixed(1)}M',
+                  ), 
                 if (_tmdbData!['status'] != null)
                   _buildInfoChip(
                     Icons.info_outline,
                     'Status',
-                    _tmdbData!['status'],
-                  ),
+                    _tmdbData!['status'] as String,
+                  ), 
                 if (_movieData!['Language'] != null && _movieData!['Language'] != 'N/A')
                   _buildInfoChip(
                     Icons.language,
                     'Language',
-                    _movieData!['Language'],
+                    _movieData!['Language'] as String,
                   ),
               ],
             ),
@@ -654,6 +873,14 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                     width: 120,
                     height: 150,
                     fit: BoxFit.cover,
+                    errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                      return Container(
+                        width: 120,
+                        height: 150,
+                        color: Colors.grey[800],
+                        child: const Icon(Icons.person, size: 50),
+                      );
+                    },
                   )
                 : Container(
                     width: 120,
@@ -664,14 +891,14 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            actor['name'],
+            actor['name'] as String,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             maxLines: 2,
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
           ),
           Text(
-            actor['character'],
+            actor['character'] as String,
             style: TextStyle(color: Colors.grey[400], fontSize: 11),
             maxLines: 2,
             textAlign: TextAlign.center,
@@ -696,7 +923,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                 CircleAvatar(
                   backgroundColor: Colors.red,
                   child: Text(
-                    review['author'][0].toUpperCase(),
+                    (review['author'] as String)[0].toUpperCase(),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -706,7 +933,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        review['author'],
+                        review['author'] as String,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       if (review['author_details']?['rating'] != null)
@@ -726,7 +953,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              review['content'],
+              review['content'] as String,
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: Colors.grey[300]),
