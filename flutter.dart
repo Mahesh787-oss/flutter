@@ -18,21 +18,200 @@ class MovieApp extends StatelessWidget {
         primarySwatch: Colors.red,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF0A0A0A),
-        cardTheme: widget(
-          child: CardTheme(
-            elevation: 8,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+        cardTheme: CardThemeData(
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      home: const WelcomeScreen(),
+    );
+  }
+}
+
+// Welcome Screen with App Features
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1A1A2E),
+              Color(0xFF0A0A0A),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            // FIX: Wrap the Column in a SingleChildScrollView to prevent overflow
+            child: SingleChildScrollView( 
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // App Logo
+                  Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.red.shade900.withAlpha(77),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.movie_filter,
+                      size: 100,
+                      color: Colors.red.shade400,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  // App Name
+                  const Text(
+                    'CineScope',
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Tagline
+                  Text(
+                    'Your Complete Movie Database',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[400],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  
+                  // Features List
+                  _buildFeature(Icons.star_rate, 'Multiple Ratings', 'IMDb, Rotten Tomatoes & Popcorn Meter'),
+                  const SizedBox(height: 16),
+                  _buildFeature(Icons.play_circle_outline, 'IMDb Integration', 'Direct links to trailers & full details'),
+                  const SizedBox(height: 16),
+                  _buildFeature(Icons.people_alt, 'Cast Information', 'Complete cast with Wikipedia links'),
+                  const SizedBox(height: 16),
+                  _buildFeature(Icons.rate_review, 'Top Reviews', 'Curated positive user reviews'),
+                  const SizedBox(height: 16),
+                  _buildFeature(Icons.info, 'Detailed Info', 'Budget, box office, awards & more'),
+                  
+                  const SizedBox(height: 48),
+                  
+                  // Get Started Button
+                  Container(
+                    width: double.infinity,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.red.shade900, Colors.red.shade700],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.shade900.withAlpha(128),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (context) => const MovieSearchScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: const Text(
+                        'GET STARTED',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-      home: const MovieSearchScreen(),
     );
   }
 
-  CardThemeData? widget({required CardTheme child}) {
-    return null;
+  Widget _buildFeature(IconData icon, String title, String description) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(13),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withAlpha(77)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.red.shade700, Colors.red.shade900],
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[400],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -82,6 +261,22 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
     super.dispose();
   }
 
+  void _goToHome() {
+    setState(() {
+      _showingDetails = false;
+      _showingSearchResults = false;
+      _movieData = null;
+      _tmdbData = null;
+      _wikiData = null;
+      _cast = null;
+      _reviews = null;
+      _imdbId = null;
+      _searchResults = null;
+      _errorMessage = null;
+      _searchController.clear();
+    });
+  }
+
   Future<void> searchMovie(String movieName) async {
     if (movieName.isEmpty) return;
 
@@ -106,9 +301,9 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
       ).timeout(const Duration(seconds: 10));
 
       if (searchResponse.statusCode == 200) {
-        final searchData = json.decode(searchResponse.body);
-        if (searchData['results'] != null && searchData['results'].isNotEmpty) {
-          final results = searchData['results'] as List;
+        final Map<String, dynamic> searchData = json.decode(searchResponse.body) as Map<String, dynamic>;
+        if (searchData['results'] != null && (searchData['results'] as List).isNotEmpty) {
+          final List<dynamic> results = searchData['results'] as List<dynamic>;
           
           if (results.length > 1) {
             setState(() {
@@ -123,10 +318,22 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
             _errorMessage = 'No movies found. Try a different search term.';
           });
         }
+      } else {
+         setState(() {
+          _errorMessage = 'Failed to fetch search results. Status code: ${searchResponse.statusCode}';
+        });
       }
+    } on http.ClientException catch (e) {
+      setState(() {
+        _errorMessage = 'Network error: ${e.message}. Please check your internet connection.';
+      });
+    } on FormatException catch (e) {
+      setState(() {
+        _errorMessage = 'Data format error: ${e.message}. Unexpected response from server.';
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Connection error. Please check your internet.';
+        _errorMessage = 'An unexpected error occurred: $e';
       });
     } finally {
       setState(() {
@@ -139,10 +346,17 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
     setState(() {
       _isLoading = true;
       _showingSearchResults = false;
+      _errorMessage = null; // Clear any previous error
     });
 
     try {
       await _fetchTMDBDataById(movieId);
+      if (_tmdbData == null) {
+        setState(() {
+          _errorMessage = 'Failed to fetch TMDB data for this movie.';
+        });
+        return;
+      }
       await _fetchOMDBData();
       await _fetchWikipediaData();
       
@@ -152,7 +366,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
       _animationController.forward(from: 0);
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error loading movie details';
+        _errorMessage = 'Error loading movie details: $e';
       });
     } finally {
       setState(() {
@@ -172,13 +386,17 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final Map<String, dynamic> data = json.decode(response.body) as Map<String, dynamic>;
         if (data['Response'] == 'True') {
           setState(() {
             _movieData = data;
           });
         }
       }
+    } on http.ClientException catch (e) {
+      print('OMDB Network Error: ${e.message}');
+    } on FormatException catch (e) {
+      print('OMDB Data Format Error: ${e.message}');
     } catch (e) {
       print('OMDB Error: $e');
     }
@@ -187,23 +405,22 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   Future<void> _fetchWikipediaData() async {
     if (_tmdbData == null) return;
     
-    final movieTitle = _tmdbData!['title'] as String;
-    final year = (_tmdbData!['release_date'] as String?)?.substring(0, 4) ?? '';
+    final String movieTitle = _tmdbData!['title'] as String;
+    final String year = (_tmdbData!['release_date'] as String?)?.substring(0, 4) ?? '';
     
     try {
-      // Try multiple search variations
-      final searchQueries = [
+      final List<String> searchQueries = [
         '$movieTitle ($year film)',
         '$movieTitle film',
         movieTitle,
       ];
       
-      for (final query in searchQueries) {
+      for (final String query in searchQueries) {
         try {
-          final searchUrl = Uri.https(
+          final Uri searchUrl = Uri.https(
             'en.wikipedia.org',
             '/w/api.php',
-            {
+            <String, dynamic>{
               'action': 'opensearch',
               'search': query,
               'limit': '3',
@@ -212,24 +429,23 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
             },
           );
           
-          final searchResponse = await http.get(
+          final http.Response searchResponse = await http.get(
             searchUrl,
-            headers: {
+            headers: <String, String>{
               'User-Agent': 'CineScope/1.0',
               'Accept': 'application/json',
             },
           ).timeout(const Duration(seconds: 10));
           
           if (searchResponse.statusCode == 200) {
-            final searchData = json.decode(searchResponse.body);
+            final List<dynamic> searchData = json.decode(searchResponse.body) as List<dynamic>;
             if (searchData[1] != null && (searchData[1] as List).isNotEmpty) {
-              final pageTitle = searchData[1][0] as String;
+              final String pageTitle = searchData[1][0] as String;
               
-              // Fetch full page content including infobox data
-              final contentUrl = Uri.https(
+              final Uri contentUrl = Uri.https(
                 'en.wikipedia.org',
                 '/w/api.php',
-                {
+                <String, dynamic>{
                   'action': 'query',
                   'titles': pageTitle,
                   'prop': 'extracts|revisions|pageimages|info',
@@ -243,37 +459,34 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                 },
               );
               
-              final contentResponse = await http.get(
+              final http.Response contentResponse = await http.get(
                 contentUrl,
-                headers: {
+                headers: <String, String>{
                   'User-Agent': 'CineScope/1.0',
                   'Accept': 'application/json',
                 },
               ).timeout(const Duration(seconds: 10));
               
               if (contentResponse.statusCode == 200) {
-                final contentData = json.decode(contentResponse.body);
-                final pages = contentData['query']['pages'] as Map<String, dynamic>;
-                final pageData = pages.values.first as Map<String, dynamic>;
+                final Map<String, dynamic> contentData = json.decode(contentResponse.body) as Map<String, dynamic>;
+                final Map<String, dynamic> pages = contentData['query']['pages'] as Map<String, dynamic>;
+                final Map<String, dynamic> pageData = pages.values.first as Map<String, dynamic>;
                 
                 if (pageData['extract'] != null && (pageData['extract'] as String).isNotEmpty) {
-                  // Extract budget and revenue from wiki content
                   String? budgetStr;
                   String? revenueStr;
                   
                   if (pageData['revisions'] != null) {
-                    final revisions = pageData['revisions'] as List;
+                    final List<dynamic> revisions = pageData['revisions'] as List<dynamic>;
                     if (revisions.isNotEmpty) {
-                      final content = revisions[0]['*'] as String?;
+                      final String? content = revisions[0]['*'] as String?;
                       if (content != null) {
-                        // Extract budget
-                        final budgetMatch = RegExp(r'\|\s*budget\s*=\s*([^\n\|]+)', caseSensitive: false).firstMatch(content);
+                        final RegExpMatch? budgetMatch = RegExp(r'\|\s*budget\s*=\s*([^\n\|]+)', caseSensitive: false).firstMatch(content);
                         if (budgetMatch != null) {
                           budgetStr = _cleanWikiValue(budgetMatch.group(1) ?? '');
                         }
                         
-                        // Extract box office/revenue
-                        final revenueMatch = RegExp(r'\|\s*(?:box[\s_]office|gross)\s*=\s*([^\n\|]+)', caseSensitive: false).firstMatch(content);
+                        final RegExpMatch? revenueMatch = RegExp(r'\|\s*(?:box[\s_]office|gross)\s*=\s*([^\n\|]+)', caseSensitive: false).firstMatch(content);
                         if (revenueMatch != null) {
                           revenueStr = _cleanWikiValue(revenueMatch.group(1) ?? '');
                         }
@@ -282,92 +495,131 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                   }
                   
                   setState(() {
-                    _wikiData = {
+                    _wikiData = <String, dynamic>{
                       ...pageData,
                       'budget_str': budgetStr,
                       'revenue_str': revenueStr,
                     };
                   });
-                  return; // Successfully found Wikipedia data
+                  return;
                 }
               }
             }
           }
+        } on http.ClientException catch (e) {
+          print('Wikipedia search attempt failed for "$query" (Network Error): ${e.message}');
+          continue;
+        } on FormatException catch (e) {
+          print('Wikipedia search attempt failed for "$query" (Data Format Error): ${e.message}');
+          continue;
         } catch (e) {
           print('Wikipedia search attempt failed for "$query": $e');
-          continue; // Try next query
+          continue;
         }
       }
+    } on http.ClientException catch (e) {
+      print('Wikipedia Network Error: ${e.message}');
+    } on FormatException catch (e) {
+      print('Wikipedia Data Format Error: ${e.message}');
     } catch (e) {
-      print('Wikipedia Error: $e');
+      print('Wikipedia General Error: $e');
     }
   }
 
   String _cleanWikiValue(String value) {
-    // Remove wiki markup, references, and extra spaces
     return value
-        .replaceAll(RegExp(r'\[\[([^\]]+)\]\]'), r'$1')
-        .replaceAll(RegExp(r'\{\{[^\}]+\}\}'), '')
-        .replaceAll(RegExp(r'<ref[^>]*>.*?</ref>', caseSensitive: false, dotAll: true), '')
-        .replaceAll(RegExp(r'<[^>]+>'), '')
-        .replaceAll(RegExp(r'\[\d+\]'), '')
+        .replaceAll(RegExp(r'\[\[(?:[^|\]]+\|)?([^\]]+)\]\]'), r'$1') // Handle [[link|text]] and [[link]]
+        .replaceAll(RegExp(r'\{\{[^\}]+\}\}'), '') // Remove templates like {{cite web}}
+        .replaceAll(RegExp(r'<ref[^>]*>.*?</ref>', caseSensitive: false, dotAll: true), '') // Remove <ref> tags
+        .replaceAll(RegExp(r'<[^>]+>'), '') // Remove other HTML tags
+        .replaceAll(RegExp(r'\[\d+\]'), '') // Remove reference numbers like [1]
+        .replaceAll(RegExp(r'&nbsp;'), ' ') // Replace non-breaking space
         .trim();
   }
 
   Future<bool> _fetchTMDBDataById(int movieId) async {
     try {
-      final detailsResponse = await http.get(
+      final http.Response detailsResponse = await http.get(
         Uri.parse('https://api.themoviedb.org/3/movie/$movieId?api_key=$tmdbApiKey'),
       ).timeout(const Duration(seconds: 10));
       
-      final creditsResponse = await http.get(
+      final http.Response creditsResponse = await http.get(
         Uri.parse('https://api.themoviedb.org/3/movie/$movieId/credits?api_key=$tmdbApiKey'),
       ).timeout(const Duration(seconds: 10));
       
-      final reviewsResponse = await http.get(
+      final http.Response reviewsResponse = await http.get(
         Uri.parse('https://api.themoviedb.org/3/movie/$movieId/reviews?api_key=$tmdbApiKey'),
       ).timeout(const Duration(seconds: 10));
 
-      final details = json.decode(detailsResponse.body);
-      final creditsData = json.decode(creditsResponse.body);
-      final reviewsData = json.decode(reviewsResponse.body);
+      if (detailsResponse.statusCode != 200 || creditsResponse.statusCode != 200 || reviewsResponse.statusCode != 200) {
+        print('TMDB API call failed with status codes: ${detailsResponse.statusCode}, ${creditsResponse.statusCode}, ${reviewsResponse.statusCode}');
+        return false;
+      }
+
+      final Map<String, dynamic> details = json.decode(detailsResponse.body) as Map<String, dynamic>;
+      final Map<String, dynamic> creditsData = json.decode(creditsResponse.body) as Map<String, dynamic>;
+      final Map<String, dynamic> reviewsData = json.decode(reviewsResponse.body) as Map<String, dynamic>;
       
       setState(() {
         _tmdbData = details;
-        _cast = creditsData['cast']?.take(15).toList();
+        _cast = (creditsData['cast'] as List<dynamic>?)?.take(15).toList();
         
-        // Filter only positive reviews (rating >= 7)
-        final allReviews = reviewsData['results'] as List<dynamic>?;
+        final List<dynamic>? allReviews = reviewsData['results'] as List<dynamic>?;
         if (allReviews != null) {
           _reviews = allReviews.where((review) {
-            final rating = review['author_details']?['rating'];
-            return rating != null && rating >= 7;
+            final dynamic rating = (review as Map<String, dynamic>)['author_details']?['rating'];
+            return rating is num && rating >= 7;
           }).take(5).toList();
         }
       });
       
       return true;
+    } on http.ClientException catch (e) {
+      print('TMDB Network Error: ${e.message}');
+      return false;
+    } on FormatException catch (e) {
+      print('TMDB Data Format Error: ${e.message}');
+      return false;
     } catch (e) {
       print('TMDB Error: $e');
       return false;
     }
   }
 
+  String _formatCurrency(int amount) {
+    if (amount == 0) return 'N/A';
+    final double inr = amount * 83.0; // Assuming 1 USD = 83 INR for conversion
+    final double crores = inr / 10000000;
+    
+    if (crores >= 1000) {
+      return '₹${(crores / 1000).toStringAsFixed(1)}k cr';
+    } else if (crores >= 100) {
+      return '₹${crores.toStringAsFixed(0)} crore';
+    } else if (crores >= 1) {
+      return '₹${crores.toStringAsFixed(1)} crore';
+    } else {
+      final double lakhs = inr / 100000;
+      return '₹${lakhs.toStringAsFixed(1)} lakh';
+    }
+  }
+
   Future<void> _launchIMDBTrailer() async {
     if (_imdbId != null) {
-      final url = Uri.parse('https://www.imdb.com/title/$_imdbId/');
+      final Uri url = Uri.parse('https://www.imdb.com/title/$_imdbId/');
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        print('Could not launch $url');
       }
     }
   }
 
   Future<void> _launchActorWikipedia(String actorName) async {
     try {
-      final searchUrl = Uri.https(
+      final Uri searchUrl = Uri.https(
         'en.wikipedia.org',
         '/w/api.php',
-        {
+        <String, dynamic>{
           'action': 'opensearch',
           'search': actorName,
           'limit': '1',
@@ -376,23 +628,29 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
         },
       );
       
-      final response = await http.get(
+      final http.Response response = await http.get(
         searchUrl,
-        headers: {
+        headers: <String, String>{
           'User-Agent': 'CineScope/1.0',
           'Accept': 'application/json',
         },
       ).timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final List<dynamic> data = json.decode(response.body) as List<dynamic>;
         if (data[3] != null && (data[3] as List).isNotEmpty) {
-          final wikiUrl = Uri.parse(data[3][0] as String);
+          final Uri wikiUrl = Uri.parse(data[3][0] as String);
           if (await canLaunchUrl(wikiUrl)) {
             await launchUrl(wikiUrl, mode: LaunchMode.externalApplication);
+          } else {
+            print('Could not launch $wikiUrl');
           }
         }
       }
+    } on http.ClientException catch (e) {
+      print('Error launching Wikipedia (Network Error): ${e.message}');
+    } on FormatException catch (e) {
+      print('Error launching Wikipedia (Data Format Error): ${e.message}');
     } catch (e) {
       print('Error launching Wikipedia: $e');
     }
@@ -427,7 +685,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
         ),
         child: SafeArea(
           child: Column(
-            children: [
+            children: <Widget>[
               _buildHeader(),
               Expanded(
                 child: _isLoading
@@ -453,7 +711,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.red.shade900.withValues(alpha: 0.3),
+            Colors.red.shade900.withAlpha(77),
             Colors.transparent,
           ],
           begin: Alignment.topCenter,
@@ -461,13 +719,13 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
         ),
       ),
       child: Column(
-        children: [
+        children: <Widget>[
           Row(
-            children: [
-              if (_showingDetails)
+            children: <Widget>[
+              if (_showingDetails || _showingSearchResults)
                 IconButton(
                   icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                  onPressed: _goBack,
+                  onPressed: _showingDetails ? _goBack : _goToHome,
                 )
               else
                 Icon(
@@ -476,25 +734,28 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                   size: 32,
                 ),
               const SizedBox(width: 12),
-              const Text(
-                'CineScope',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                  color: Colors.white,
+              GestureDetector(
+                onTap: _goToHome,
+                child: const Text(
+                  'CineScope',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade900.withValues(alpha: 0.3),
+                  color: Colors.red.shade900.withAlpha(77),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.red.shade800),
                 ),
                 child: Row(
-                  children: [
+                  children: <Widget>[
                     Icon(Icons.local_movies, size: 16, color: Colors.red.shade400),
                     const SizedBox(width: 4),
                     const Text('PRO', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -503,16 +764,16 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
               ),
             ],
           ),
-          if (!_showingDetails) ...[
+          if (!_showingDetails) ...<Widget>[
             const SizedBox(height: 20),
             Container(
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.3),
+                color: Colors.black.withAlpha(77),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.red.shade900.withValues(alpha: 0.5)),
-                boxShadow: [
+                border: Border.all(color: Colors.red.shade900.withAlpha(128)),
+                boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: Colors.red.shade900.withValues(alpha: 0.3),
+                    color: Colors.red.shade900.withAlpha(77),
                     blurRadius: 20,
                     spreadRadius: 2,
                   ),
@@ -537,7 +798,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 ),
-                onChanged: (value) => setState(() {}),
+                onChanged: (String value) => setState(() {}),
                 onSubmitted: searchMovie,
               ),
             ),
@@ -551,10 +812,10 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+        children: <Widget>[
           Stack(
             alignment: Alignment.center,
-            children: [
+            children: <Widget>[
               Container(
                 width: 100,
                 height: 100,
@@ -562,7 +823,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      Colors.red.shade900.withValues(alpha: 0.3),
+                      Colors.red.shade900.withAlpha(77),
                       Colors.transparent,
                     ],
                   ),
@@ -599,7 +860,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             Icon(Icons.error_outline, size: 80, color: Colors.red.shade400),
             const SizedBox(height: 24),
             Text(
@@ -636,8 +897,8 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.movie_filter, size: 120, color: Colors.red.shade900.withValues(alpha: 0.5)),
+        children: <Widget>[
+          Icon(Icons.movie_filter, size: 120, color: Colors.red.shade900.withAlpha(128)),
           const SizedBox(height: 24),
           Text(
             'Discover Movies',
@@ -661,18 +922,21 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   }
 
   Widget _buildSearchResults() {
+    if (_searchResults == null || _searchResults!.isEmpty) {
+      return const Center(child: Text('No search results found.'));
+    }
     return Column(
-      children: [
+      children: <Widget>[
         Container(
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.red.shade900.withValues(alpha: 0.2),
+            color: Colors.red.shade900.withAlpha(51),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red.shade900.withValues(alpha: 0.5)),
+            border: Border.all(color: Colors.red.shade900.withAlpha(128)),
           ),
           child: Row(
-            children: [
+            children: <Widget>[
               Icon(Icons.info_outline, color: Colors.red.shade400),
               const SizedBox(width: 12),
               Expanded(
@@ -689,8 +953,8 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
             padding: const EdgeInsets.symmetric(horizontal: 16),
             physics: const BouncingScrollPhysics(),
             itemCount: _searchResults!.length,
-            itemBuilder: (context, index) {
-              final movie = _searchResults![index] as Map<String, dynamic>;
+            itemBuilder: (BuildContext context, int index) {
+              final Map<String, dynamic> movie = _searchResults![index] as Map<String, dynamic>;
               return _buildSearchResultCard(movie);
             },
           ),
@@ -700,29 +964,29 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   }
 
   Widget _buildSearchResultCard(Map<String, dynamic> movie) {
-    final title = movie['title'] ?? 'Unknown';
+    final String title = movie['title'] as String? ?? 'Unknown';
     final String? releaseDate = movie['release_date'] as String?;
-    final year = (releaseDate != null && releaseDate.length >= 4) 
+    final String year = (releaseDate != null && releaseDate.length >= 4) 
         ? releaseDate.substring(0, 4) 
         : 'N/A';
-    final overview = movie['overview'] ?? 'No description available';
-    final posterPath = movie['poster_path'] as String?;
-    final rating = movie['vote_average'] as num?;
+    final String overview = movie['overview'] as String? ?? 'No description available';
+    final String? posterPath = movie['poster_path'] as String?;
+    final num? rating = movie['vote_average'] as num?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
-          colors: [
-            Colors.grey[900]!.withValues(alpha: 0.5),
-            Colors.grey[900]!.withValues(alpha: 0.3),
+          colors: <Color>[
+            Colors.grey[900]!.withAlpha(128),
+            Colors.grey[900]!.withAlpha(77),
           ],
         ),
         border: Border.all(color: Colors.grey[800]!),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
+            color: Colors.black.withAlpha(128),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -733,12 +997,12 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
         child: InkWell(
           onTap: () => _loadMovieById(movie['id'] as int),
           borderRadius: BorderRadius.circular(16),
-          splashColor: Colors.red.shade900.withValues(alpha: 0.3),
-          highlightColor: Colors.red.shade900.withValues(alpha: 0.1),
+          splashColor: Colors.red.shade900.withAlpha(77),
+          highlightColor: Colors.red.shade900.withAlpha(26),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
-              children: [
+              children: <Widget>[
                 Hero(
                   tag: 'poster_${movie['id']}',
                   child: ClipRRect(
@@ -749,7 +1013,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                             width: 80,
                             height: 120,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
+                            errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
                               return _buildPlaceholderPoster();
                             },
                           )
@@ -760,7 +1024,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: <Widget>[
                       Text(
                         title,
                         style: const TextStyle(
@@ -773,7 +1037,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                       ),
                       const SizedBox(height: 8),
                       Row(
-                        children: [
+                        children: <Widget>[
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -791,7 +1055,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                               ),
                             ),
                           ),
-                          if (rating != null) ...[
+                          if (rating != null) ...<Widget>[
                             const SizedBox(width: 12),
                             Icon(Icons.star, color: Colors.amber.shade600, size: 18),
                             Text(
@@ -847,7 +1111,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Column(
-          children: [
+          children: <Widget>[
             _buildHeroSection(),
             _buildDetailsSection(),
           ],
@@ -857,21 +1121,21 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   }
 
   Widget _buildHeroSection() {
-    final backdropPath = _tmdbData!['backdrop_path'] as String?;
-    final posterPath = _tmdbData!['poster_path'] as String?;
-    final title = _tmdbData!['title'] ?? 'Unknown';
-    final tagline = _tmdbData!['tagline'] as String?;
+    final String? backdropPath = _tmdbData!['backdrop_path'] as String?;
+    final String? posterPath = _tmdbData!['poster_path'] as String?;
+    final String title = _tmdbData!['title'] as String? ?? 'Unknown';
+    final String? tagline = _tmdbData!['tagline'] as String?;
 
     return Stack(
-      children: [
+      children: <Widget>[
         if (backdropPath != null)
           ShaderMask(
-            shaderCallback: (rect) {
+            shaderCallback: (Rect rect) {
               return const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Color(0xFF0A0A0A)],
-                stops: [0.3, 1.0],
+                colors: <Color>[Colors.transparent, Color(0xFF0A0A0A)],
+                stops: <double>[0.3, 1.0],
               ).createShader(rect);
             },
             blendMode: BlendMode.dstIn,
@@ -880,6 +1144,14 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
               width: double.infinity,
               height: 400,
               fit: BoxFit.cover,
+               errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                return Container(
+                  width: double.infinity,
+                  height: 400,
+                  color: Colors.grey[900],
+                  child: Icon(Icons.broken_image, size: 80, color: Colors.grey[700]),
+                );
+              },
             ),
           ),
         Container(
@@ -888,7 +1160,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
+              colors: <Color>[
                 Colors.transparent,
                 Color(0xFF0A0A0A),
               ],
@@ -901,16 +1173,16 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
           right: 20,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
+            children: <Widget>[
               if (posterPath != null)
                 Hero(
                   tag: 'poster_${_tmdbData!['id']}',
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
+                      boxShadow: <BoxShadow>[
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.7),
+                          color: Colors.black.withAlpha(179),
                           blurRadius: 20,
                           spreadRadius: 5,
                         ),
@@ -923,6 +1195,9 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                         width: 120,
                         height: 180,
                         fit: BoxFit.cover,
+                        errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                          return _buildPlaceholderPoster();
+                        },
                       ),
                     ),
                   ),
@@ -931,14 +1206,14 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     Text(
                       title,
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        shadows: [
+                        shadows: <Shadow>[
                           Shadow(
                             blurRadius: 10,
                             color: Colors.black,
@@ -947,7 +1222,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                         ],
                       ),
                     ),
-                    if (tagline != null && tagline.isNotEmpty) ...[
+                    if (tagline != null && tagline.isNotEmpty) ...<Widget>[
                       const SizedBox(height: 8),
                       Text(
                         '"$tagline"',
@@ -969,22 +1244,22 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   }
 
   Widget _buildDetailsSection() {
-    final releaseDate = _tmdbData!['release_date'] as String?;
-    final year = (releaseDate != null && releaseDate.length >= 4) 
+    final String? releaseDate = _tmdbData!['release_date'] as String?;
+    final String year = (releaseDate != null && releaseDate.length >= 4) 
         ? releaseDate.substring(0, 4) 
         : 'N/A';
-    final runtime = _tmdbData!['runtime'];
-    final genres = (_tmdbData!['genres'] as List?)
-        ?.map((g) => g['name'] as String)
+    final int? runtime = _tmdbData!['runtime'] as int?;
+    final String genres = (_tmdbData!['genres'] as List<dynamic>?)
+        ?.map<String>((dynamic g) => (g as Map<String, dynamic>)['name'] as String)
         .join(' • ') ?? 'N/A';
 
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Row(
-            children: [
+            children: <Widget>[
               _buildInfoPill(Icons.calendar_today, year),
               const SizedBox(width: 12),
               if (runtime != null)
@@ -1002,12 +1277,12 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
               height: 60,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.red.shade900, Colors.red.shade700],
+                  colors: <Color>[Colors.red.shade900, Colors.red.shade700],
                 ),
                 borderRadius: BorderRadius.circular(30),
-                boxShadow: [
+                boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: Colors.red.shade900.withValues(alpha: 0.5),
+                    color: Colors.red.shade900.withAlpha(128),
                     blurRadius: 20,
                     spreadRadius: 2,
                   ),
@@ -1046,7 +1321,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
           _buildSectionTitle('Overview'),
           const SizedBox(height: 12),
           Text(
-            _wikiData?['extract'] ?? _tmdbData!['overview'] ?? 'No overview available.',
+            _wikiData?['extract'] as String? ?? _tmdbData!['overview'] as String? ?? 'No overview available.',
             style: TextStyle(
               color: Colors.grey[300],
               fontSize: 16,
@@ -1057,7 +1332,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
 
           _buildAdditionalInfo(),
 
-          if (_cast != null && _cast!.isNotEmpty) ...[
+          if (_cast != null && _cast!.isNotEmpty) ...<Widget>[
             const SizedBox(height: 32),
             _buildSectionTitle('Cast'),
             const SizedBox(height: 16),
@@ -1067,20 +1342,20 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 itemCount: _cast!.length,
-                itemBuilder: (context, index) {
+                itemBuilder: (BuildContext context, int index) {
                   return _buildCastCard(_cast![index] as Map<String, dynamic>);
                 },
               ),
             ),
           ],
 
-          if (_reviews != null && _reviews!.isNotEmpty) ...[
+          if (_reviews != null && _reviews!.isNotEmpty) ...<Widget>[
             const SizedBox(height: 32),
             _buildSectionTitle('Top Reviews'),
             const SizedBox(height: 16),
-            ..._reviews!.map((review) => 
+            ..._reviews!.map<Widget>((dynamic review) => // Explicitly type map to Widget
               _buildReviewCard(review as Map<String, dynamic>)
-            ),
+            ).toList(), // Convert to List<Widget>
           ],
 
           const SizedBox(height: 40),
@@ -1099,7 +1374,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           Icon(icon, size: 16, color: Colors.red.shade400),
           const SizedBox(width: 8),
           Text(
@@ -1112,34 +1387,36 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   }
 
   Widget _buildRatingsSection() {
-    final imdbRating = _movieData?['imdbRating'] as String?;
-    final rottenTomatoes = _movieData?['Ratings'] as List?;
+    final String? imdbRating = _movieData?['imdbRating'] as String?;
+    final List<dynamic>? rottenTomatoes = _movieData?['Ratings'] as List<dynamic>?;
     String? rtScore;
     
     if (rottenTomatoes != null) {
-      for (var rating in rottenTomatoes) {
-        if (rating['Source'] == 'Rotten Tomatoes') {
-          rtScore = rating['Value'] as String;
+      for (dynamic rating in rottenTomatoes) {
+        final Map<String, dynamic> ratingMap = rating as Map<String, dynamic>;
+        if (ratingMap['Source'] == 'Rotten Tomatoes') {
+          rtScore = ratingMap['Value'] as String;
           break;
         }
       }
     }
 
-    // Calculate Popcorn Meter (audience score simulation)
-    double popcornScore = 75.0;
+    double popcornScore = 75.0; // Default or fallback score
     if (imdbRating != null && imdbRating != 'N/A') {
-      final imdbValue = double.tryParse(imdbRating) ?? 0;
-      popcornScore = (imdbValue * 10 + 5).clamp(0, 100);
+      final double? imdbValue = double.tryParse(imdbRating.split('/')[0]); // Take only the rating part
+      if (imdbValue != null) {
+        popcornScore = (imdbValue * 10).clamp(0, 100);
+      }
     }
 
     return Wrap(
       spacing: 12,
       runSpacing: 12,
-      children: [
+      children: <Widget>[
         if (imdbRating != null && imdbRating != 'N/A')
           _buildRatingCard(
             'IMDb',
-            imdbRating,
+            imdbRating.split('/')[0], // Display only the score, not /10
             '/10',
             Colors.amber.shade600,
             Icons.star,
@@ -1177,23 +1454,23 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-        boxShadow: [
+        border: Border.all(color: color.withAlpha(128)),
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: color.withValues(alpha: 0.2),
+            color: color.withAlpha(51),
             blurRadius: 8,
             spreadRadius: 1,
           ),
         ],
       ),
       child: Column(
-        children: [
+        children: <Widget>[
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
           Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
+            children: <Widget>[
               Text(
                 rating,
                 style: TextStyle(
@@ -1229,7 +1506,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
 
   Widget _buildSectionTitle(String title) {
     return Row(
-      children: [
+      children: <Widget>[
         Container(
           width: 4,
           height: 24,
@@ -1252,87 +1529,87 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   }
 
   Widget _buildAdditionalInfo() {
-    final director = _movieData?['Director'] as String?;
-    final writer = _movieData?['Writer'] as String?;
-    final actors = _movieData?['Actors'] as String?;
-    final language = _movieData?['Language'] as String?;
-    final country = _movieData?['Country'] as String?;
-    final awards = _movieData?['Awards'] as String?;
-    final budget = _tmdbData!['budget'] as int?;
-    final revenue = _tmdbData!['revenue'] as int?;
-    final productionCompanies = _tmdbData!['production_companies'] as List?;
+    final String? director = _movieData?['Director'] as String?;
+    final String? writer = _movieData?['Writer'] as String?;
+    final String? actors = _movieData?['Actors'] as String?;
+    final String? language = _movieData?['Language'] as String?;
+    final String? country = _movieData?['Country'] as String?;
+    final String? awards = _movieData?['Awards'] as String?;
+    final int? budget = _tmdbData!['budget'] as int?;
+    final int? revenue = _tmdbData!['revenue'] as int?;
+    final List<dynamic>? productionCompanies = _tmdbData!['production_companies'] as List<dynamic>?;
+    
+    final String? wikiBudget = _wikiData?['budget_str'] as String?;
+    final String? wikiRevenue = _wikiData?['revenue_str'] as String?;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         _buildSectionTitle('Details'),
         const SizedBox(height: 16),
-        if (director != null && director != 'N/A') ...[
+        if (director != null && director != 'N/A') ...<Widget>[
           _buildInfoRow(Icons.person, 'Director', director),
           const SizedBox(height: 12),
         ],
-        if (writer != null && writer != 'N/A') ...[
+        if (writer != null && writer != 'N/A') ...<Widget>[
           _buildInfoRow(Icons.edit, 'Writers', writer),
           const SizedBox(height: 12),
         ],
-        if (actors != null && actors != 'N/A') ...[
+        if (actors != null && actors != 'N/A') ...<Widget>[
           _buildInfoRow(Icons.people, 'Stars', actors),
           const SizedBox(height: 12),
         ],
-        if (language != null && language != 'N/A') ...[
+        if (language != null && language != 'N/A') ...<Widget>[
           _buildInfoRow(Icons.language, 'Language', language),
           const SizedBox(height: 12),
         ],
-        if (country != null && country != 'N/A') ...[
+        if (country != null && country != 'N/A') ...<Widget>[
           _buildInfoRow(Icons.public, 'Country', country),
           const SizedBox(height: 12),
         ],
-        if (awards != null && awards != 'N/A' && awards.isNotEmpty) ...[
+        if (awards != null && awards != 'N/A' && awards.isNotEmpty) ...<Widget>[
           _buildInfoRow(Icons.emoji_events, 'Awards', awards),
           const SizedBox(height: 12),
         ],
-        if (budget != null && budget > 0) ...[
-          _buildInfoRow(
-            Icons.attach_money,
-            'Budget',
-            '\${_formatCurrency(budget)}',
-          ),
+        if (wikiBudget != null && wikiBudget.isNotEmpty) ...<Widget>[
+          _buildInfoRow(Icons.attach_money, 'Budget', wikiBudget),
+          const SizedBox(height: 12),
+        ] else if (budget != null && budget > 0) ...<Widget>[
+          _buildInfoRow(Icons.attach_money, 'Budget', _formatCurrency(budget)),
           const SizedBox(height: 12),
         ],
-        if (revenue != null && revenue > 0) ...[
-          _buildInfoRow(
-            Icons.trending_up,
-            'Box Office',
-            '\${_formatCurrency(revenue)}',
-          ),
+        if (wikiRevenue != null && wikiRevenue.isNotEmpty) ...<Widget>[
+          _buildInfoRow(Icons.trending_up, 'Box Office', wikiRevenue),
+          const SizedBox(height: 12),
+        ] else if (revenue != null && revenue > 0) ...<Widget>[
+          _buildInfoRow(Icons.trending_up, 'Box Office', _formatCurrency(revenue)),
           const SizedBox(height: 12),
         ],
-        if (productionCompanies != null && productionCompanies.isNotEmpty) ...[
+        if (productionCompanies != null && productionCompanies.isNotEmpty) ...<Widget>[
           _buildInfoRow(
             Icons.business,
             'Production',
-            productionCompanies.take(2).map((c) => c['name']).join(', '),
+            productionCompanies.take(2).map<String>((dynamic c) => (c as Map<String, dynamic>)['name'] as String).join(', '),
           ),
         ],
       ],
     );
   }
 
-
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[900]?.withValues(alpha: 0.5),
+        color: Colors.grey[900]?.withAlpha(128),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[800]!),
       ),
       child: Row(
-        children: [
+        children: <Widget>[
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.red.shade900.withValues(alpha: 0.3),
+              color: Colors.red.shade900.withAlpha(77),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: Colors.red.shade400, size: 20),
@@ -1341,7 +1618,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              children: <Widget>[
                 Text(
                   label,
                   style: TextStyle(
@@ -1368,9 +1645,9 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   }
 
   Widget _buildCastCard(Map<String, dynamic> actor) {
-    final name = actor['name'] as String;
-    final character = actor['character'] as String;
-    final profilePath = actor['profile_path'] as String?;
+    final String name = actor['name'] as String;
+    final String character = actor['character'] as String;
+    final String? profilePath = actor['profile_path'] as String?;
 
     return Container(
       width: 140,
@@ -1380,34 +1657,34 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
         child: InkWell(
           onTap: () => _launchActorWikipedia(name),
           borderRadius: BorderRadius.circular(16),
-          splashColor: Colors.red.shade900.withValues(alpha: 0.3),
-          highlightColor: Colors.red.shade900.withValues(alpha: 0.1),
+          splashColor: Colors.red.shade900.withAlpha(77),
+          highlightColor: Colors.red.shade900.withAlpha(26),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.grey[900],
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.grey[800]!),
-              boxShadow: [
+              boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  color: Colors.black.withAlpha(77),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Column(
-              children: [
+              children: <Widget>[
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   child: Stack(
-                    children: [
+                    children: <Widget>[
                       profilePath != null
                           ? Image.network(
                               'https://image.tmdb.org/t/p/w200$profilePath',
                               width: 140,
                               height: 160,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
+                              errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
                                 return _buildPlaceholderAvatar();
                               },
                             )
@@ -1418,7 +1695,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade900.withValues(alpha: 0.9),
+                            color: Colors.red.shade900.withAlpha(230),
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(12),
                             ),
@@ -1436,7 +1713,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
-                    children: [
+                    children: <Widget>[
                       Text(
                         name,
                         style: const TextStyle(
@@ -1479,10 +1756,10 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
   }
 
   Widget _buildReviewCard(Map<String, dynamic> review) {
-    final author = review['author'] as String;
-    final content = review['content'] as String;
-    final rating = review['author_details']?['rating'];
-    final createdAt = review['created_at'] as String?;
+    final String author = review['author'] as String;
+    final String content = review['content'] as String;
+    final dynamic rating = review['author_details']?['rating'];
+    final String? createdAt = review['created_at'] as String?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1490,9 +1767,9 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[800]!),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: Colors.black.withAlpha(77),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -1502,15 +1779,15 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: <Widget>[
             Row(
-              children: [
+              children: <Widget>[
                 Container(
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.red.shade700, Colors.red.shade900],
+                      colors: <Color>[Colors.red.shade700, Colors.red.shade900],
                     ),
                     shape: BoxShape.circle,
                   ),
@@ -1529,7 +1806,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: <Widget>[
                       Text(
                         author,
                         style: const TextStyle(
@@ -1539,7 +1816,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                       ),
                       if (rating != null)
                         Row(
-                          children: [
+                          children: <Widget>[
                             Icon(Icons.star, size: 16, color: Colors.amber.shade600),
                             const SizedBox(width: 4),
                             Text(
@@ -1550,7 +1827,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (createdAt != null) ...[
+                            if (createdAt != null) ...<Widget>[
                               Text(
                                 ' • ${_formatDate(createdAt)}',
                                 style: TextStyle(
@@ -1567,13 +1844,13 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade900.withValues(alpha: 0.3),
+                    color: Colors.green.shade900.withAlpha(77),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.green.shade800),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
+                    children: <Widget>[
                       Icon(Icons.thumb_up, size: 14, color: Colors.green.shade400),
                       const SizedBox(width: 4),
                       Text(
@@ -1593,7 +1870,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.3),
+                color: Colors.black.withAlpha(77),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1615,19 +1892,23 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> with SingleTicker
 
   String _formatDate(String dateString) {
     try {
-      final date = DateTime.parse(dateString);
-      final now = DateTime.now();
-      final difference = now.difference(date);
+      final DateTime date = DateTime.parse(dateString);
+      final DateTime now = DateTime.now();
+      final Duration difference = now.difference(date);
 
-      if (difference.inDays < 30) {
+      if (difference.inDays < 1) {
+        return 'Today';
+      } else if (difference.inDays < 7) {
         return '${difference.inDays}d ago';
+      } else if (difference.inDays < 30) {
+        return '${(difference.inDays / 7).floor()}w ago';
       } else if (difference.inDays < 365) {
         return '${(difference.inDays / 30).floor()}mo ago';
       } else {
         return '${(difference.inDays / 365).floor()}y ago';
       }
     } catch (e) {
-      return 'Recently';
+      return dateString.split('T')[0]; // Fallback to YYYY-MM-DD
     }
   }
 }
