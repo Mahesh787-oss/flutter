@@ -59,12 +59,25 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     });
 
     try {
-      // Fetch OMDB data
-      await _fetchOMDBData(movieName);
+      // Try TMDB first (has newer movies and better search)
+      bool tmdbSuccess = await _fetchTMDBData(movieName);
       
-      // Fetch TMDB data for additional info
-      if (_movieData != null) {
-        await _fetchTMDBData(movieName);
+      // Then try OMDB for additional ratings
+      if (tmdbSuccess) {
+        await _fetchOMDBDataByImdbId();
+      } else {
+        // Fallback to OMDB direct search
+        await _fetchOMDBData(movieName);
+        if (_movieData != null) {
+          await _fetchTMDBData(movieName);
+        }
+      }
+      
+      // If still no data found
+      if (_movieData == null && _tmdbData == null) {
+        setState(() {
+          _errorMessage = 'Movie not found. Try a different search term.';
+        });
       }
     } catch (e) {
       setState(() {
@@ -107,7 +120,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     }
   }
 
-  Future<void> _fetchTMDBData(String movieName) async {
+  Future<bool> _fetchTMDBData(String movieName) async {
     try {
       // Search for movie on TMDB
       final searchResponse = await http.get(
@@ -144,11 +157,51 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                 'https://api.themoviedb.org/3/movie/$movieId/reviews?api_key=$tmdbApiKey'),
           ).timeout(const Duration(seconds: 10));
 
+          final details = json.decode(detailsResponse.body);
+          
           setState(() {
-            _tmdbData = json.decode(detailsResponse.body);
+            _tmdbData = details;
+            
+            // Create movieData from TMDB if not already set
+            if (_movieData == null) {
+              _movieData = {
+                'Title': details['title'] ?? 'N/A',
+                'Year': details['release_date']?.substring(0, 4) ?? 'N/A',
+                'Runtime': details['runtime'] != null ? '${details['runtime']} min' : 'N/A',
+                'Genre': (details['genres'] as List?)?.map((g) => g['name']).join(', ') ?? 'N/A',
+                'Director': 'N/A',
+                'Writer': 'N/A',
+                'Plot': details['overview'] ?? 'N/A',
+                'Language': (details['spoken_languages'] as List?)?.isNotEmpty == true 
+                    ? details['spoken_languages'][0]['english_name'] 
+                    : 'N/A',
+                'Poster': details['poster_path'] != null 
+                    ? 'https://image.tmdb.org/t/p/w500${details['poster_path']}'
+                    : 'N/A',
+                'imdbRating': details['vote_average'] != null 
+                    ? (details['vote_average'] as num).toStringAsFixed(1)
+                    : 'N/A',
+                'Metascore': 'N/A',
+                'imdbID': details['imdb_id'] ?? '',
+              };
+            }
             
             final creditsData = json.decode(creditsResponse.body);
             _cast = creditsData['cast']?.take(10).toList();
+            
+            // Get director and writers from crew
+            if (creditsData['crew'] != null) {
+              final crew = creditsData['crew'] as List;
+              final directors = crew.where((c) => c['job'] == 'Director').map((c) => c['name']).toList();
+              final writers = crew.where((c) => c['job'] == 'Writer' || c['job'] == 'Screenplay').map((c) => c['name']).toList();
+              
+              if (directors.isNotEmpty && _movieData!['Director'] == 'N/A') {
+                _movieData!['Director'] = directors.join(', ');
+              }
+              if (writers.isNotEmpty && _movieData!['Writer'] == 'N/A') {
+                _movieData!['Writer'] = writers.take(3).join(', ');
+              }
+            }
             
             final videosData = json.decode(videosResponse.body);
             if (videosData['results'] != null) {
@@ -162,11 +215,48 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
             final reviewsData = json.decode(reviewsResponse.body);
             _reviews = reviewsData['results'];
           });
+          
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      print('TMDB Error: $e');
+      return false;
+    }
+  }
+
+  Future<void> _fetchOMDBDataByImdbId() async {
+    if (_tmdbData?['imdb_id'] == null) return;
+    
+    try {
+      final response = await http.get(
+        Uri.parse('https://www.omdbapi.com/?apikey=$omdbApiKey&i=${_tmdbData!['imdb_id']}'),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['Response'] == 'True') {
+          setState(() {
+            // Update with OMDB data (which has more accurate ratings)
+            if (data['imdbRating'] != 'N/A') {
+              _movieData!['imdbRating'] = data['imdbRating'];
+            }
+            if (data['Metascore'] != 'N/A') {
+              _movieData!['Metascore'] = data['Metascore'];
+            }
+            if (data['Director'] != 'N/A' && _movieData!['Director'] == 'N/A') {
+              _movieData!['Director'] = data['Director'];
+            }
+            if (data['Writer'] != 'N/A' && _movieData!['Writer'] == 'N/A') {
+              _movieData!['Writer'] = data['Writer'];
+            }
+          });
         }
       }
     } catch (e) {
-      print('TMDB Error: $e');
-      // Don't show error to user for TMDB failures, just skip extra features
+      print('OMDB by IMDb ID Error: $e');
+      // Don't throw error, just continue without OMDB data
     }
   }
 
@@ -382,14 +472,18 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
   }
 
   Widget _buildElaboratePlot() {
-    String plot = _movieData!['Plot'];
+    String plot = _movieData!['Plot'] ?? 'N/A';
     String overview = _tmdbData?['overview'] ?? '';
     
     // Combine OMDB plot with TMDB overview for more detail
     String fullSummary = plot;
-    if (overview.isNotEmpty && overview != plot) {
+    if (overview.isNotEmpty && overview != plot && plot != 'N/A') {
       fullSummary = '$plot\n\n$overview';
+    } else if (plot == 'N/A' && overview.isNotEmpty) {
+      fullSummary = overview;
     }
+    
+    if (fullSummary == 'N/A') return const SizedBox.shrink();
     
     // Add tagline if available
     String? tagline = _tmdbData?['tagline'];
@@ -411,9 +505,9 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withAlpha(25), // Fix for deprecated withOpacity
+                color: Colors.red.withAlpha(26), // 0.1 opacity
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withAlpha((255 * 0.3).round())), // Fix for deprecated withOpacity
+                border: Border.all(color: Colors.red.withAlpha(77)), // 0.3 opacity
               ),
               child: Row(
                 children: [
@@ -455,13 +549,13 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                   _buildInfoChip(
                     Icons.attach_money,
                     'Budget',
-                    '\$${(_tmdbData!['budget'] / 1000000).toStringAsFixed(1)}M',
+                    "\$${(_tmdbData!['budget'] / 1000000).toStringAsFixed(1)}M",
                   ),
                 if (_tmdbData!['revenue'] != null && _tmdbData!['revenue'] > 0)
                   _buildInfoChip(
                     Icons.trending_up,
                     'Revenue',
-                    '\$${(_tmdbData!['revenue'] / 1000000).toStringAsFixed(1)}M',
+                    "\$${(_tmdbData!['revenue'] / 1000000).toStringAsFixed(1)}M",
                   ),
                 if (_tmdbData!['status'] != null)
                   _buildInfoChip(
@@ -469,7 +563,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                     'Status',
                     _tmdbData!['status'],
                   ),
-                if (_movieData!['Language'] != 'N/A')
+                if (_movieData!['Language'] != null && _movieData!['Language'] != 'N/A')
                   _buildInfoChip(
                     Icons.language,
                     'Language',
