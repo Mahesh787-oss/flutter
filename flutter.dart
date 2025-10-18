@@ -34,14 +34,7 @@ class MovieSearchScreen extends StatefulWidget {
 class _MovieSearchScreenState extends State<MovieSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
-  Map<String, dynamic>? _movieData;
-  Map<String, dynamic>? _tmdbData;
-  List<dynamic>? _cast;
-  List<dynamic>? _reviews;
-  String? _trailerKey;
   String? _errorMessage;
-  List<dynamic>? _searchResults;
-  bool _showingSearchResults = false;
 
   // Replace with your API keys
   final String omdbApiKey = 'fe138e9';
@@ -53,13 +46,6 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _movieData = null;
-      _tmdbData = null;
-      _cast = null;
-      _reviews = null;
-      _trailerKey = null;
-      _searchResults = null;
-      _showingSearchResults = false;
     });
 
     try {
@@ -74,26 +60,35 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
         if (searchData['results'] != null && searchData['results'].isNotEmpty) {
           final results = searchData['results'] as List;
           
-          // If multiple movies found, show selection screen
+          // Navigate to results screen
           if (results.length > 1) {
-            setState(() {
-              _searchResults = results.take(10).toList(); // Show top 10 results
-              _showingSearchResults = true;
-            });
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MovieSelectionScreen(
+                  searchResults: results.take(10).toList(),
+                  omdbApiKey: omdbApiKey,
+                  tmdbApiKey: tmdbApiKey,
+                ),
+              ),
+            );
           } else {
-            // Only one result, load it directly
-            await _loadMovieById(results[0]['id']);
+            // Only one result, go directly to details
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MovieDetailsScreen(
+                  movieId: results[0]['id'],
+                  omdbApiKey: omdbApiKey,
+                  tmdbApiKey: tmdbApiKey,
+                ),
+              ),
+            );
           }
         } else {
-          // Try OMDB as fallback
-          await _fetchOMDBData(movieName);
-          if (_movieData != null) {
-            await _fetchTMDBDataByTitle(movieName);
-          } else {
-            setState(() {
-              _errorMessage = 'Movie not found. Try a different search term.';
-            });
-          }
+          setState(() {
+            _errorMessage = 'Movie not found. Try a different search term.';
+          });
         }
       }
     } catch (e) {
@@ -104,212 +99,6 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
       setState(() {
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _loadMovieById(int movieId) async {
-    setState(() {
-      _isLoading = true;
-      _showingSearchResults = false;
-    });
-
-    try {
-      await _fetchTMDBDataById(movieId);
-      await _fetchOMDBDataByImdbId();
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error loading movie: ${e.toString()}';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _fetchOMDBData(String movieName) async {
-    try {
-      final response = await http.get(
-        Uri.parse('https://www.omdbapi.com/?apikey=$omdbApiKey&t=${Uri.encodeComponent(movieName)}'),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['Response'] == 'True') {
-          setState(() {
-            _movieData = data;
-          });
-        } else {
-          setState(() {
-            _errorMessage = data['Error'] ?? 'Movie not found';
-          });
-        }
-      } else {
-        setState(() {
-          _errorMessage = 'Failed to load movie data. Status: ${response.statusCode}';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Network error: Please check your internet connection';
-      });
-      print('OMDB Error: $e');
-    }
-  }
-
-  Future<bool> _fetchTMDBDataByTitle(String movieName) async {
-    try {
-      final searchResponse = await http.get(
-        Uri.parse(
-            'https://api.themoviedb.org/3/search/movie?api_key=$tmdbApiKey&query=${Uri.encodeComponent(movieName)}'),
-      ).timeout(const Duration(seconds: 10));
-
-      if (searchResponse.statusCode == 200) {
-        final searchData = json.decode(searchResponse.body);
-        if (searchData['results'] != null && searchData['results'].isNotEmpty) {
-          final movieId = searchData['results'][0]['id'];
-          return await _fetchTMDBDataById(movieId);
-        }
-      }
-      return false;
-    } catch (e) {
-      print('TMDB Search Error: $e');
-      return false;
-    }
-  }
-
-  Future<bool> _fetchTMDBDataById(int movieId) async {
-    try {
-      // Fetch movie details
-      final detailsResponse = await http.get(
-        Uri.parse(
-            'https://api.themoviedb.org/3/movie/$movieId?api_key=$tmdbApiKey'),
-      ).timeout(const Duration(seconds: 10));
-      
-      // Fetch cast
-      final creditsResponse = await http.get(
-        Uri.parse(
-            'https://api.themoviedb.org/3/movie/$movieId/credits?api_key=$tmdbApiKey'),
-      ).timeout(const Duration(seconds: 10));
-      
-      // Fetch videos (trailers)
-      final videosResponse = await http.get(
-        Uri.parse(
-            'https://api.themoviedb.org/3/movie/$movieId/videos?api_key=$tmdbApiKey'),
-      ).timeout(const Duration(seconds: 10));
-      
-      // Fetch reviews
-      final reviewsResponse = await http.get(
-        Uri.parse(
-            'https://api.themoviedb.org/3/movie/$movieId/reviews?api_key=$tmdbApiKey'),
-      ).timeout(const Duration(seconds: 10));
-
-      final details = json.decode(detailsResponse.body);
-      
-      setState(() {
-        _tmdbData = details;
-        
-        // Create movieData from TMDB if not already set
-        if (_movieData == null) {
-          _movieData = {
-            'Title': details['title'] ?? 'N/A',
-            'Year': details['release_date']?.substring(0, 4) ?? 'N/A',
-            'Runtime': details['runtime'] != null ? '${details['runtime']} min' : 'N/A',
-            'Genre': (details['genres'] as List?)?.map((g) => g['name']).join(', ') ?? 'N/A',
-            'Director': 'N/A',
-            'Writer': 'N/A',
-            'Plot': details['overview'] ?? 'N/A',
-            'Language': (details['spoken_languages'] as List?)?.isNotEmpty == true 
-                ? details['spoken_languages'][0]['english_name'] 
-                : 'N/A',
-            'Poster': details['poster_path'] != null 
-                ? 'https://image.tmdb.org/t/p/w500${details['poster_path']}'
-                : 'N/A',
-            'imdbRating': details['vote_average'] != null 
-                ? (details['vote_average'] as num).toStringAsFixed(1)
-                : 'N/A',
-            'Metascore': 'N/A',
-            'imdbID': details['imdb_id'] ?? '',
-          };
-        }
-        
-        final creditsData = json.decode(creditsResponse.body);
-        _cast = creditsData['cast']?.take(10).toList();
-        
-        // Get director and writers from crew
-        if (creditsData['crew'] != null) {
-          final crew = creditsData['crew'] as List;
-          final directors = crew.where((c) => c['job'] == 'Director').map((c) => c['name']).toList();
-          final writers = crew.where((c) => c['job'] == 'Writer' || c['job'] == 'Screenplay').map((c) => c['name']).toList();
-          
-          if (directors.isNotEmpty && _movieData!['Director'] == 'N/A') {
-            _movieData!['Director'] = directors.join(', ');
-          }
-          if (writers.isNotEmpty && _movieData!['Writer'] == 'N/A') {
-            _movieData!['Writer'] = writers.take(3).join(', ');
-          }
-        }
-        
-        final videosData = json.decode(videosResponse.body);
-        if (videosData['results'] != null) {
-          final trailer = videosData['results'].firstWhere(
-            (video) => video['type'] == 'Trailer' && video['site'] == 'YouTube',
-            orElse: () => videosData['results'].isNotEmpty ? videosData['results'][0] : null,
-          );
-          _trailerKey = trailer?['key'];
-        }
-        
-        final reviewsData = json.decode(reviewsResponse.body);
-        _reviews = reviewsData['results'];
-      });
-      
-      return true;
-    } catch (e) {
-      print('TMDB Error: $e');
-      return false;
-    }
-  }
-
-  Future<void> _fetchOMDBDataByImdbId() async {
-    if (_tmdbData?['imdb_id'] == null) return;
-    
-    try {
-      final response = await http.get(
-        Uri.parse('https://www.omdbapi.com/?apikey=$omdbApiKey&i=${_tmdbData!['imdb_id']}'),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['Response'] == 'True') {
-          setState(() {
-            // Update with OMDB data (which has more accurate ratings)
-            if (data['imdbRating'] != 'N/A') {
-              _movieData!['imdbRating'] = data['imdbRating'];
-            }
-            if (data['Metascore'] != 'N/A') {
-              _movieData!['Metascore'] = data['Metascore'];
-            }
-            if (data['Director'] != 'N/A' && _movieData!['Director'] == 'N/A') {
-              _movieData!['Director'] = data['Director'];
-            }
-            if (data['Writer'] != 'N/A' && _movieData!['Writer'] == 'N/A') {
-              _movieData!['Writer'] = data['Writer'];
-            }
-          });
-        }
-      }
-    } catch (e) {
-      print('OMDB by IMDb ID Error: $e');
-      // Don't throw error, just continue without OMDB data
-    }
-  }
-
-  Future<void> _launchTrailer() async {
-    if (_trailerKey != null) {
-      final url = Uri.parse('https://www.youtube.com/watch?v=$_trailerKey');
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      }
     }
   }
 
@@ -352,82 +141,76 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                           style: const TextStyle(color: Colors.red, fontSize: 16),
                         ),
                       )
-                    : _showingSearchResults
-                        ? _buildSearchResults()
-                        : _movieData != null
-                            ? _buildMovieDetails()
-                            : const Center(
-                                child: Text(
-                                  'Search for a movie to see details',
-                                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                                ),
-                              ),
+                    : const Center(
+                        child: Text(
+                          'Search for a movie to see details',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Movie Selection Screen (for multiple results)
+class MovieSelectionScreen extends StatelessWidget {
+  final List<dynamic> searchResults;
+  final String omdbApiKey;
+  final String tmdbApiKey;
+
+  const MovieSelectionScreen({
+    Key? key,
+    required this.searchResults,
+    required this.omdbApiKey,
+    required this.tmdbApiKey,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Select Movie'),
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.red.withAlpha((255 * 0.1).round()), // Fix: Replaced withOpacity
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.red),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Multiple movies found with similar names. Select the one you want:',
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: searchResults.length,
+              itemBuilder: (context, index) {
+                final movie = searchResults[index];
+                return _buildSearchResultCard(context, movie);
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSearchResults() {
-    return Column(
-      children: [
-        // Back Button
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _searchResults = null;
-                    _showingSearchResults = false;
-                  });
-                },
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Back to Search'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[800],
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Info Banner
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Colors.red.withAlpha((255 * 0.1).round()), // Fix: Replaced withOpacity with withAlpha
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline, color: Colors.red),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Multiple movies found with similar names. Select the one you want:',
-                  style: TextStyle(
-                    color: Colors.grey[300],
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _searchResults!.length,
-            itemBuilder: (context, index) {
-              final movie = _searchResults![index];
-              return _buildSearchResultCard(movie);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchResultCard(Map<String, dynamic> movie) {
+  Widget _buildSearchResultCard(BuildContext context, Map<String, dynamic> movie) {
     final title = movie['title'] ?? 'Unknown';
     final year = movie['release_date']?.substring(0, 4) ?? 'N/A';
     final overview = movie['overview'] ?? 'No description available';
@@ -439,14 +222,24 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       color: Colors.grey[850],
       child: InkWell(
-        onTap: () => _loadMovieById(movie['id']),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MovieDetailsScreen(
+                movieId: movie['id'],
+                omdbApiKey: omdbApiKey,
+                tmdbApiKey: tmdbApiKey,
+              ),
+            ),
+          );
+        },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Poster
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: posterPath != null
@@ -472,7 +265,6 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
                       ),
               ),
               const SizedBox(width: 12),
-              // Details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,39 +352,209 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
       ),
     );
   }
+}
+
+// Movie Details Screen
+class MovieDetailsScreen extends StatefulWidget {
+  final int movieId;
+  final String omdbApiKey;
+  final String tmdbApiKey;
+
+  const MovieDetailsScreen({
+    Key? key,
+    required this.movieId,
+    required this.omdbApiKey,
+    required this.tmdbApiKey,
+  }) : super(key: key);
+
+  @override
+  State<MovieDetailsScreen> createState() => _MovieDetailsScreenState();
+}
+
+class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _movieData;
+  Map<String, dynamic>? _tmdbData;
+  List<dynamic>? _cast;
+  List<dynamic>? _reviews;
+  String? _trailerKey;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMovieData();
+  }
+
+  Future<void> _loadMovieData() async {
+    try {
+      await _fetchTMDBDataById(widget.movieId);
+      await _fetchOMDBDataByImdbId();
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error loading movie: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchTMDBDataById(int movieId) async {
+    try {
+      final detailsResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/movie/$movieId?api_key=${widget.tmdbApiKey}'),
+      ).timeout(const Duration(seconds: 10));
+      
+      final creditsResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/movie/$movieId/credits?api_key=${widget.tmdbApiKey}'),
+      ).timeout(const Duration(seconds: 10));
+      
+      final videosResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/movie/$movieId/videos?api_key=${widget.tmdbApiKey}'),
+      ).timeout(const Duration(seconds: 10));
+      
+      final reviewsResponse = await http.get(
+        Uri.parse(
+            'https://api.themoviedb.org/3/movie/$movieId/reviews?api_key=${widget.tmdbApiKey}'),
+      ).timeout(const Duration(seconds: 10));
+
+      final details = json.decode(detailsResponse.body);
+      
+      setState(() {
+        _tmdbData = details;
+        
+        _movieData = {
+          'Title': details['title'] ?? 'N/A',
+          'Year': details['release_date']?.substring(0, 4) ?? 'N/A',
+          'Runtime': details['runtime'] != null ? '${details['runtime']} min' : 'N/A',
+          'Genre': (details['genres'] as List?)?.map((g) => g['name']).join(', ') ?? 'N/A',
+          'Director': 'N/A',
+          'Writer': 'N/A',
+          'Plot': details['overview'] ?? 'N/A',
+          'Language': (details['spoken_languages'] as List?)?.isNotEmpty == true 
+              ? details['spoken_languages'][0]['english_name'] 
+              : 'N/A',
+          'Poster': details['poster_path'] != null 
+              ? 'https://image.tmdb.org/t/p/w500${details['poster_path']}'
+              : 'N/A',
+          'imdbRating': details['vote_average'] != null 
+              ? (details['vote_average'] as num).toStringAsFixed(1)
+              : 'N/A',
+          'Metascore': 'N/A',
+          'imdbID': details['imdb_id'] ?? '',
+          'Ratings': [],
+        };
+        
+        final creditsData = json.decode(creditsResponse.body);
+        _cast = creditsData['cast']?.take(10).toList();
+        
+        if (creditsData['crew'] != null) {
+          final crew = creditsData['crew'] as List;
+          final directors = crew.where((c) => c['job'] == 'Director').map((c) => c['name']).toList();
+          final writers = crew.where((c) => c['job'] == 'Writer' || c['job'] == 'Screenplay').map((c) => c['name']).toList();
+          
+          if (directors.isNotEmpty) {
+            _movieData!['Director'] = directors.join(', ');
+          }
+          if (writers.isNotEmpty) {
+            _movieData!['Writer'] = writers.take(3).join(', ');
+          }
+        }
+        
+        final videosData = json.decode(videosResponse.body);
+        if (videosData['results'] != null) {
+          final trailer = videosData['results'].firstWhere(
+            (video) => video['type'] == 'Trailer' && video['site'] == 'YouTube',
+            orElse: () => videosData['results'].isNotEmpty ? videosData['results'][0] : null,
+          );
+          _trailerKey = trailer?['key'];
+        }
+        
+        final reviewsData = json.decode(reviewsResponse.body);
+        _reviews = reviewsData['results'];
+      });
+    } catch (e) {
+      print('TMDB Error: $e');
+    }
+  }
+
+  Future<void> _fetchOMDBDataByImdbId() async {
+    if (_tmdbData?['imdb_id'] == null) return;
+    
+    try {
+      final response = await http.get(
+        Uri.parse('https://www.omdbapi.com/?apikey=${widget.omdbApiKey}&i=${_tmdbData!['imdb_id']}'),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['Response'] == 'True') {
+          setState(() {
+            if (data['imdbRating'] != 'N/A') {
+              _movieData!['imdbRating'] = data['imdbRating'];
+            }
+            if (data['Metascore'] != 'N/A') {
+              _movieData!['Metascore'] = data['Metascore'];
+            }
+            if (data['Director'] != 'N/A' && _movieData!['Director'] == 'N/A') {
+              _movieData!['Director'] = data['Director'];
+            }
+            if (data['Writer'] != 'N/A' && _movieData!['Writer'] == 'N/A') {
+              _movieData!['Writer'] = data['Writer'];
+            }
+            if (data['Ratings'] != null) {
+              _movieData!['Ratings'] = data['Ratings'];
+            }
+          });
+        }
+      }
+    } catch (e) {
+      print('OMDB Error: $e');
+    }
+  }
+
+  Future<void> _launchTrailer() async {
+    if (_trailerKey != null) {
+      final url = Uri.parse('https://www.youtube.com/watch?v=$_trailerKey');
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_movieData?['Title'] ?? 'Movie Details'),
+        elevation: 0,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 16),
+                  ),
+                )
+              : _buildMovieDetails(),
+    );
+  }
 
   Widget _buildMovieDetails() {
+    if (_movieData == null) return const SizedBox();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Back Button
-          Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _movieData = null;
-                  _tmdbData = null;
-                  _cast = null;
-                  _reviews = null;
-                  _trailerKey = null;
-                  _searchResults = null;
-                  _showingSearchResults = false;
-                });
-              },
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Back to Search'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[800],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-            ),
-          ),
-          
-          // Movie Poster and Basic Info
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -633,7 +595,6 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
           
           const SizedBox(height: 24),
           
-          // Trailer Button
           if (_trailerKey != null)
             SizedBox(
               width: double.infinity,
@@ -652,17 +613,11 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
           
           const SizedBox(height: 24),
           
-          // Genre
           _buildSection('Genre', _movieData!['Genre']),
-          
-          // Elaborate Plot/Summary
           _buildElaboratePlot(),
-          
-          // Director & Actors
           _buildSection('Director', _movieData!['Director']),
           _buildSection('Writers', _movieData!['Writer']),
           
-          // Cast with Images
           if (_cast != null && _cast!.isNotEmpty) ...[
             const SizedBox(height: 24),
             const Text(
@@ -683,7 +638,6 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
             ),
           ],
           
-          // Reviews
           if (_reviews != null && _reviews!.isNotEmpty) ...[
             const SizedBox(height: 24),
             const Text(
@@ -707,9 +661,8 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
       children: [
         if (_movieData!['imdbRating'] != 'N/A')
           _buildRatingChip('IMDb', _movieData!['imdbRating'], Colors.amber),
-        // Rotten Tomatoes rating from OMDB
         if (_movieData!['Ratings'] != null)
-          ...(_movieData!['Ratings'] as List).map<Widget>((rating) { // Added <Widget> type argument
+          ...(_movieData!['Ratings'] as List).map<Widget>((rating) { // Explicit type argument
             if (rating['Source'] == 'Rotten Tomatoes') {
               final score = rating['Value'].toString().replaceAll('%', '');
               return _buildRatingChip('Rotten Tomatoes', score, Colors.red);
@@ -724,8 +677,7 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
           ),
         if (_movieData!['Metascore'] != 'N/A')
           _buildRatingChip('Metascore', _movieData!['Metascore'], Colors.green),
-        // Simulated BookMyShow rating
-        _buildRatingChip('BookMyShow', '${(7.5 + (double.tryParse(_movieData!['imdbRating'] ?? '0') ?? 0) * 0.3).toStringAsFixed(1)}', Colors.orange)
+        _buildRatingChip('BookMyShow', '${(7.5 + (double.tryParse(_movieData!['imdbRating'] ?? '0') ?? 0) * 0.3).toStringAsFixed(1)}', Colors.orange),
       ],
     );
   }
@@ -748,7 +700,6 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     String plot = _movieData!['Plot'] ?? 'N/A';
     String overview = _tmdbData?['overview'] ?? '';
     
-    // Combine OMDB plot with TMDB overview for more detail
     String fullSummary = plot;
     if (overview.isNotEmpty && overview != plot && plot != 'N/A') {
       fullSummary = '$plot\n\n$overview';
@@ -758,7 +709,6 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
     
     if (fullSummary == 'N/A') return const SizedBox.shrink();
     
-    // Add tagline if available
     String? tagline = _tmdbData?['tagline'];
     
     return Padding(
@@ -778,9 +728,9 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withAlpha((255 * 0.1).round()), // Fix: Replaced withOpacity with withAlpha
+                color: Colors.red.withAlpha((255 * 0.1).round()), // Fix: Replaced withOpacity
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withAlpha((255 * 0.3).round())), // Fix: Replaced withOpacity with withAlpha
+                border: Border.all(color: Colors.red.withAlpha((255 * 0.3).round())), // Fix: Replaced withOpacity
               ),
               child: Row(
                 children: [
@@ -812,7 +762,6 @@ class _MovieSearchScreenState extends State<MovieSearchScreen> {
             textAlign: TextAlign.justify,
           ),
           const SizedBox(height: 12),
-          // Additional movie details
           if (_tmdbData != null) ...[
             Wrap(
               spacing: 16,
